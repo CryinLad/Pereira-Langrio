@@ -1,0 +1,205 @@
+#include <Stepper.h>
+#include <SoftwareSerial.h>
+ *****/for stepper/*****
+ //change this to the number of steps on your motor
+#define STEPSREV 2047 // 64(fullsteps) * 64 (reduction ratio)
+#define COIL1 11
+#define COIL2 9
+#define COIL3 10
+#define COIL4 8
+#define POT 0
+#define POT2 2
+#define ENER 13
+#define TIMEOUT 3000
+ //create an instance of the stepper class, specifying
+ //the number of steps per revolution and pins atached to motor coils.
+Stepper myStepper(STEPSREV, COIL1, COIL2, COIL3, COIL4;)
+int PotVal;
+int PotVal2;
+int LastPotVal= 0 ; // To implement a software Low-Pass-Filter
+int LastPotVal2= 0 ; // To implement a software Low-Pass-Filter
+int pos = 0; // stepper position(0-4096)->(0-360°)
+int pos2 = 0;
+int pos3 = 0 ;
+unsigned long stamp = 0; // last move time stamped.
+unsigned long stamp2 = 0; // last move time stamped.
+ *****/for RFID/*****
+SoftwareSerial RFID(2, 3); // RX and TX
+int data1 = 0;
+int ok = -1;
+int yes = 7;
+int no = 6;
+int tag1[14] ={2,48,52,49,50,66,54,51,54,56,69,49,56,3;}
+int tag2[14] = {2,48,49,48,48,52,56,56,67,68,55,49,50,3;}
+int newtag[14] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0}; // used for read comparisons
+void setup)(
+{
+ myStepper.setSpeed(10); // set the motor speed to 10 RPM
+ pinMode(ENER, OUTPUT); // status led (coils energized.)
+ //Serial.begin(9600); //for debuging.
+RFID.begin(9600); // start serial to RFID reader
+Serial.begin(9600); // start serial to PC
+pinMode(yes, OUTPUT); // for status LEDs
+pinMode(no, OUTPUT;)
+}
+/****************************************************/
+boolean comparetag(int aa[14], int bb[14)]
+{
+boolean ff = false;
+int fg = 0;
+for (int cc = 0 ; cc < 14 ; cc)++
+{
+if (aa[cc] == bb[cc)]
+{
+fg;++
+56
+}}
+if (fg == 14)
+{
+ff = true;
+}
+return ff;
+}
+/****************************************************/
+void outread)(
+{
+Serial.println("you are out drive safe;)"
+digitalWrite(no, HIGH;)
+delay(1000;)
+digitalWrite(no, LOW;)
+int count2=0;
+for (pos3; pos3>0; pos3)--
+{
+ count2;++
+} 
+myStepper.step(-count2;)
+pos3=count2;
+count2=0;
+ myStepper.step(pos3;)
+ok = -1;
+}
+/****************************************************/
+void speedcontrol)(
+{
+PotVal2 = analogRead(POT2)/10.23; // Potentiometer value range 0-
+100
+int count=0;
+ if(PotVal2 < 30)
+{
+ Serial.println("critical area;)"
+ digitalWrite(yes, HIGH;)
+ delay(1000;)
+ digitalWrite(yes, LOW;)
+58
+for (pos3 ; pos3 > 0 ; pos3)--
+{
+ myStepper.step(1;)
+}
+ Serial.println("stay in speed limet;)"
+ Serial.println(PotVal2;)
+ delay(500;)
+ok=-1 ;
+}
+ if(PotVal2 > 30)
+{
+Serial.println("critical area;)"
+ digitalWrite(yes, HIGH;)
+ delay(1000;)
+ digitalWrite(yes, LOW;)
+ for (pos2 ; pos2 > 0 ; pos2)--
+{
+ count;++
+} 
+ myStepper.step(-count;)
+Serial.println("slow down;)"
+ Serial.println(PotVal2;)
+ delay(500;)
+}
+}
+/****************************************************/
+void enterread)(
+ {
+speedcontrol;)(
+}
+/****************************************************/
+void fullcontrol() // normal setuation
+{
+ readTags;)(
+ PotVal = analogRead(POT); // Potentiometer value range 0-1023
+ PotVal= map(PotVal,0,1023,0,514); // Map pot range in the stepper
+range.
+ PotVal= PotVal * 0.1 + LastPotVal * 0.9 ; // Filtering to reduce noise.
+ LastPotVal= PotVal;
+ if(abs(PotVal - pos)> 4){ //if diference is greater than 4 steps.
+ if((PotVal - pos)> 0{)
+ digitalWrite(ENER, HIGH); //Motor energized .
+ myStepper.step(1); // move one step to the right.
+ pos;++
+}
+ if((PotVal - pos)< 0{)
+ digitalWrite(ENER, HIGH); //Motor energized.
+ myStepper.step(-1); // move one step to the left.
+ pos;--
+}
+ pos2=pos;
+ pos3=pos;
+ stamp = millis(); // stamp actual time.
+}
+ else {
+ if((millis() - stamp) > TIMEOUT){ //Turn Off coils after TIMEOUT.
+ digitalWrite(COIL1, LOW;)
+ digitalWrite(COIL2, LOW;)
+ digitalWrite(COIL3, LOW;)
+ digitalWrite(COIL4, LOW;)
+ digitalWrite(ENER, LOW); //Motor de-energized.
+ }
+}
+}
+/****************************************************/
+void checkmytags() // compares each tag against the tag just read
+{
+ok = 0; // this variable helps decision-making,
+ //if it is 1 we enter the area, zero for out tag,
+1- //is no read attempt made
+if (comparetag(newtag, tag1) == true)
+{
+ok;++
+}
+if (comparetag(newtag, tag2) == true)
+{
+62
+ok=0;
+}
+}
+/****************************************************/
+void readTags)(
+{
+if (RFID.available() > 0 )
+{
+ //read tag numbers
+delay(100); // needed to allow time for the data to come in from the serial
+buffer.
+for (int z = 0 ; z < 14 ; z++) // read the rest of the tag
+{
+data1 = RFID.read;)(
+newtag[z] = data1;
+}
+RFID.flush(); // stops multiple reads
+ //do the tags match up?
+checkmytags;)(
+}
+ //now do something based on tag type
+if (ok > 0) // if we enter the area
+{
+enterread;)(
+//ok = -1;
+}
+else if (ok == 0) // if we are out
+{
+outread;)(
+}
+}
+/****************************************************/
+void loop)(
+{
+fullcontrol;)(
